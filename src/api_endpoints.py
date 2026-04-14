@@ -1,56 +1,42 @@
 import logging
 import time
 
-from datetime import timedelta
 from flask import Blueprint, Response, request
-
-from utils.config import POD_NAME
-from utils.logging import is_ready_gauge, last_updated_gauge, job_start_counter, job_complete_counter, job_duration_summary
 
 logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
 
-# NB: uncomment code in main.py to enable these endpoints
-# Any endpoints added here will be available at /api/<endpoint> - e.g. http://127.0.0.1:8080/api/example
-# Change the the example below to suit your needs + add more as needed
 
+@api_endpoints.route('/journaliser', methods=['GET', 'POST'])
+def journaliser():
+    """
+    Journalize a PDF document in SBSYS based on the provided JSON payload. The payload should contain the following fields:
+    - user: The user performing the journalization formatted as "<full name> - <dqnumber>"
+    - data: The PDF document to be journalized
+    """
 
-@api_endpoints.route('/example', methods=['GET', 'POST'])
-def example():
     if request.method == 'POST':
-        if request.headers.get('Content-Type') == 'application/json':
+        try:
             payload = request.get_json()
+            user = payload.get('user')
+            data = payload.get('data')
 
-            # -- Example job with example use of metrics -- #
-            is_ready_gauge.labels(error_type='working', job_name=POD_NAME).set(0)
-            last_updated_gauge.set_to_current_time()
+            # Validate the payload
+            if not user or not data:
+                return Response("Invalid payload: 'user' and 'data' fields are required.", status=400)
+            
+            # Validate PDF file            
+            if not data.startswith('%PDF'):
+                logger.warning(f"Invalid PDF data received: {data}")
+                return Response("Invalid PDF data.", status=400)
 
-            job_start_counter.labels(job_name='example job').inc()
+            # Simulate journalization process (replace with actual logic)
+            logger.info(f"Simulating journalizing document for user: {user}")
+            time.sleep(2)  # Simulate processing time
 
-            start_time = time.time()
-            logger.info('Doing important job - that somehow prevents the app from being ready')
-            duration = timedelta(seconds=(time.time() - start_time))
-
-            job_duration_summary.labels(job_name='example job', status='success').observe(duration.total_seconds())
-            job_complete_counter.labels(job_name='example job', status='success').inc()
-
-            is_ready_gauge.labels(error_type=None, job_name=POD_NAME).set(1)
-            last_updated_gauge.set_to_current_time()
-            # --------------------------------------------- #
-
-            return Response(f'You posted: {payload}', status=200)
-        else:
-            return Response('Content-Type must be application/json', status=400)
+            return Response(f"Document journalized successfully for user: {user}", status=200)
+        except Exception as e:
+            logger.error(f"Error during journalization: {str(e)}")
+            return Response("An error occurred during journalization.", status=500)
     else:
-        # -- Example job with example use of metrics -- #
-        job_start_counter.labels(job_name='another example job').inc()
-
-        start_time = time.time()
-        logger.info('Doing important job - that does NOT prevent the app from being ready')
-        duration = timedelta(seconds=(time.time() - start_time))
-
-        job_duration_summary.labels(job_name='another example job', status='success').observe(duration.total_seconds())
-        job_complete_counter.labels(job_name='another example job', status='success').inc()
-        # --------------------------------------------- #
-
-        return Response('Example response', status=200)
+        return Response("Method not allowed. Use POST to journalize a document.", status=405)
