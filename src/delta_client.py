@@ -126,9 +126,12 @@ class DeltaClient:
 
                         relations = e.get('typeRefs', [])
                         department = next((item.get('targetObject', {}).get('identity', {}).get('name', '-') for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-AdmUnit'), '-')
-                        name = next((item.get('targetObject', {}).get('attributes', [{}])[0].get('value', '-') for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-Person'), '-')
 
-                        incoming_type_relations = next((item.get('targetObject', {}).get('inTypeRefs', None) for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-Person'), None)
+                        person_target = next((item.get('targetObject', {}) for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-Person'), {})
+                        name = next((item.get('value', '-') for item in person_target.get('attributes', []) if item.get('userKey') == 'APOS-Types-Person-Attribute-SurnameAndName'), '-')
+                        cpr = next((item.get('value', '-') for item in person_target.get('attributes', []) if item.get('userKey') == 'APOS-Types-Person-Attribute-CPR'), '-')
+
+                        incoming_type_relations = person_target.get('inTypeRefs', None)
                         if incoming_type_relations:
                             user = incoming_type_relations[0].get('targetObject', {}).get('identity', {}).get('name', '-')
                         else:
@@ -140,7 +143,8 @@ class DeltaClient:
                             'Telefon': phone,
                             'Mobil': mobile,
                             'Afdeling': department,
-                            'DQ-nummer': user
+                            'DQ-nummer': user,
+                            'CPR': cpr,
                         }
 
                         for key, value in person.items():
@@ -247,9 +251,11 @@ class DeltaClient:
                                 {
                                     "userKey": "APOS-Types-Engagement-TypeRelation-Person",
                                     "projection": {
+                                        "identity": True,
                                         "state": True,
                                         "attributes": [
-                                            "APOS-Types-Person-Attribute-SurnameAndName"
+                                            "APOS-Types-Person-Attribute-SurnameAndName",
+                                            "APOS-Types-Person-Attribute-CPR"
                                         ],
                                         "incomingTypeRelations": [
                                             {
