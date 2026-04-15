@@ -55,7 +55,16 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
         except requests.exceptions.RequestException as e:
             logger.error(e)
             return None
-
+        
+    def get_auth_headers(self):
+        if self.access_token and self.access_token_expiry and time.time() < self.access_token_expiry:
+            return {'Authorization': f'Bearer {self.access_token}'}
+        else:
+            if self.request_access_token():
+                return {'Authorization': f'Bearer {self.access_token}'}
+            else:
+                logger.error("Failed to obtain access token")
+                return {}
 
 class SbsysClient:
     def __init__(self, client_id, client_secret, username, password, url):
@@ -100,9 +109,7 @@ class SbsysClient:
         :return: API response.
         """
         url = f"{self.api_client.base_url}/dokument/journaliser"
-        headers = {
-            "Authorization": f"Bearer {self.api_client.request_access_token()}"
-        }
+        headers = self.api_client.get_auth_headers()
         files = {
             "file": file
         }

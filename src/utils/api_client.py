@@ -1,5 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any
 import requests
 
 logger = logging.getLogger(__name__)
@@ -15,13 +17,27 @@ class APIClientWithAuthHeaders(ABC):
         pass  # pragma: no cover
 
     def _make_request(self, method, path, **kwargs):
-        headers = self.get_auth_headers()
+        # Backwards/forwards compatible: callers may pass either a requests.* callable
+        # (e.g. requests.post) or an HTTP method string (e.g. "POST").
+        if isinstance(method, str):
+            method_name = method.strip().lower()
+            resolved: Callable[..., requests.Response] | None = getattr(requests, method_name, None)
+            if not callable(resolved):
+                logger.error(f"Unsupported HTTP method: {method!r}")
+                return None
+            method = resolved
+
+        try:
+            headers = self.get_auth_headers()
+        except Exception as e:
+            logger.error(f"Error obtaining auth headers: {e}")
+            return None
 
         if headers:
             if path.startswith("http://") or path.startswith("https://"):
                 url = path
             else:
-                url = f"{self.base_url}/{path}"
+                url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
 
             try:
                 response = method(url, headers=headers, **kwargs)
@@ -36,7 +52,7 @@ class APIClientWithAuthHeaders(ABC):
                     return response.content
 
             except requests.exceptions.RequestException as e:
-                logger.error(e)
+                logger.error(f"Request failed: {e}")
                 return None
         else:
             logger.error("Failed to get auth headers")

@@ -1,16 +1,21 @@
 import logging
-import time
 import base64
 import binascii
 
 from flask import Blueprint, Response, request
 from sbsys_client import SbsysClient
-from utils.config import SBSYS_URL, SBSIP_PSAG_CLIENT_ID, SBSIP_PSAG_CLIENT_SECRET, SBSYS_PSAG_USERNAME, SBSYS_PSAG_PASSWORD
+from delta_client import DeltaClient
+from utils.config import SBSYS_URL, SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_USERNAME, SBSYS_PASSWORD, \
+                         DELTA_URL, DELTA_AUTH_URL, DELTA_REALM, DELTA_CLIENT_ID, DELTA_CLIENT_SECRET, \
+                         TEST_DQ_NUMBER
 
 logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
-sbsys_psag_client = SbsysClient(SBSIP_PSAG_CLIENT_ID, SBSIP_PSAG_CLIENT_SECRET,
-                                SBSYS_PSAG_USERNAME, SBSYS_PSAG_PASSWORD, SBSYS_URL)
+sbsys_client = SbsysClient(SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET,
+                           SBSYS_USERNAME, SBSYS_PASSWORD, SBSYS_URL)
+delta_client =  DeltaClient(DELTA_URL, DELTA_AUTH_URL, DELTA_REALM,
+                            DELTA_CLIENT_ID, DELTA_CLIENT_SECRET)
+
 
 @api_endpoints.route('/journaliser', methods=['GET', 'POST'])
 def journaliser():
@@ -55,7 +60,7 @@ def journaliser():
             user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
 
             # user_cpr = "?"
-            # sag_ids = sbsys_psag_client.get_personalesag(cpr=user_cpr)
+            # sag_ids = sbsys_client.get_personalesag(cpr=user_cpr)
 
             # Journalize the document for each sag_id 
             # for sag_id in sag_ids:
@@ -71,3 +76,18 @@ def journaliser():
 
     else:
         return Response("Method not allowed. Use POST to journalize a document.", status=405)
+
+
+@api_endpoints.route('/test-delta', methods=['GET'])
+def test_delta():
+    """
+    Test endpoint to verify connectivity with the Delta API.
+    """
+    search_dict = delta_client.get_dq_number_search(TEST_DQ_NUMBER)
+    result = delta_client.search(search_dict)
+
+    if result is not None:
+        count = len(result)
+        return Response(f"Delta API connectivity test successful. Found {count} objects of type 'Person': {result}", status=200)
+    else:
+        return Response("Failed to connect to Delta API or no results found.", status=500)
