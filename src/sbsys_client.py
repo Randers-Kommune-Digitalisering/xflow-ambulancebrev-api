@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class SbsysAPIClient(APIClientWithAuthHeaders):
-    _client_cache: Dict[Tuple[str, str, str, str], 'SbsysAPIClient'] = {}
+    _client_cache: Dict[Tuple[str, str, str, str, str], 'SbsysAPIClient'] = {}
 
     def __init__(self, client_id, client_secret, username, password, url):
         super().__init__(url)
@@ -24,7 +24,7 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
 
     @classmethod
     def get_client(cls, client_id, client_secret, username, password, url):
-        key = (client_id, client_secret, username, password)
+        key = (client_id, client_secret, username, password, url)
         if key in cls._client_cache:
             return cls._client_cache[key]
         client = cls(client_id, client_secret, username, password, url)
@@ -43,6 +43,7 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
         headers = {
             "Content-Type": "application/x-www-form-urlencoded"
         }
+
         try:
             if not token_url.startswith("https://"):
                 token_url = "https://" + token_url
@@ -52,10 +53,31 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
             self.access_token = data['access_token']
             self.access_token_expiry = time.time() + data['expires_in']
             return self.access_token
+
+        except requests.exceptions.HTTPError as e:
+            safe_payload = {
+                **payload,
+                "client_secret": "***" if payload.get("client_secret") else "",
+                "password": "***" if payload.get("password") else "",
+            }
+            response = getattr(e, "response", None)
+            if response is not None:
+                body = response.text
+                logger.error(
+                    "Access token request failed (%s). url=%s payload=%s response_body=%s",
+                    response.status_code,
+                    response.url,
+                    safe_payload,
+                    body,
+                )
+            else:
+                logger.error("Access token request failed: %s", e)
+            return None
+
         except requests.exceptions.RequestException as e:
             logger.error(e)
             return None
-        
+
     def get_auth_headers(self):
         if self.access_token and self.access_token_expiry and time.time() < self.access_token_expiry:
             return {'Authorization': f'Bearer {self.access_token}'}

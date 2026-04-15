@@ -59,8 +59,13 @@ def journaliser():
             logger.info(f"Simulating journalizing document for user: {user.split(' - ')[-1]}")
             user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
 
-            # user_cpr = "?"
-            # sag_ids = sbsys_client.get_personalesag(cpr=user_cpr)
+            search_dict = delta_client.get_dq_number_search(user_dq)
+            search_result = delta_client.search(search_dict)
+            user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
+
+            logger.info(f"Search returned CPR: {user_cpr}")
+            sag_ids = sbsys_client.get_personalesag(cpr=user_cpr)
+            logger.info(f"SBSYS search for CPR {user_cpr} returned sag_ids: {[sag['Id'] for sag in sag_ids]}")
 
             # Journalize the document for each sag_id 
             # for sag_id in sag_ids:
