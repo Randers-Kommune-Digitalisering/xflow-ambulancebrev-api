@@ -13,7 +13,7 @@ RUN addgroup --gid $GROUP_ID $GROUP_NAME && \
 
 # Install packages
 RUN apk update
-RUN apk add musl-dev gcc libpq-dev mariadb-connector-c-dev postgresql-dev python3-dev
+RUN apk add musl-dev gcc libpq-dev python3-dev
 
 # Copy files and set working dir
 COPY . $HOME
