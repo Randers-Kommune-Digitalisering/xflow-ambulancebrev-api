@@ -47,7 +47,7 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
 
         try:
             if not token_url.startswith("https://"):
-                token_url = "https://" + token_url
+                token_url = "https://" + token_url.lstrip("http://")
             response = requests.post(token_url, headers=headers, data=payload, timeout=20)
             response.raise_for_status()
             data = response.json()
@@ -142,10 +142,11 @@ class SbsysClient:
         Journalize a document by uploading a file and metadata.
 
         :param file: The file to be journalized.
-        :param json: Metadata describing the document (JournaliserDokumentInputDtoV10).
+        :param sag_id: The ID of the sag to journalize the document under.
+        :param delforloeb_id: Optional ID of the delforloeb to associate with the journalized document.
         :return: API response.
         """
-        metadata = {
+        metadata = {  # JournaliserDokumentInputDtoV10
             "SagID": sag_id,
             "Beskrivelse": "Ambulancebrev automatisk journaliseret fra X-Flow blanket udfyldt af medarbejderen.",
             "OmfattetAfAktindsigt": True,

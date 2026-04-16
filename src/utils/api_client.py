@@ -4,6 +4,7 @@ from collections.abc import Callable
 import requests
 
 logger = logging.getLogger(__name__)
+DEFAULT_REQUEST_TIMEOUT = 30
 
 
 # Abstract base api client class
@@ -37,6 +38,7 @@ class APIClientWithAuthHeaders(ABC):
                 url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
 
             try:
+                kwargs.setdefault("timeout", DEFAULT_REQUEST_TIMEOUT)
                 response = method(url, headers=headers, **kwargs)
 
                 try:
@@ -77,9 +79,6 @@ class APIClientWithAuthHeaders(ABC):
 
     def post(self, path, data=None, json=None, **kwargs):
         return self._make_request(requests.post, path, data=data, json=json, **kwargs)
-
-    def post_upload(self, path, data=None, files=None):
-        return self._make_request(requests.post, path, data=data, files=files)
 
     def put(self, path, data=None, json=None, **kwargs):
         return self._make_request(requests.put, path, data=data, json=json, **kwargs)

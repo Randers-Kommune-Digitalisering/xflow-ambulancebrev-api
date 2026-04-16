@@ -63,7 +63,7 @@ Applikationen læser miljøvariabler i [src/utils/config.py](src/utils/config.py
 | `PORT` | `8080` | Port som Flask kører på |
 | `DEBUG` | `False` | Flask debug + mere logning |
 | `POD_NAME` | `pod_name_not_set` | Bruges som label i readiness-metrics |
-| `TESTING` | `True` | Slår test-mode til (se nedenfor) |
+| `TESTING` | `False` | Slår test-mode til (se nedenfor) |
 
 #### **SBSYS/SBSIP (production)** *(bruges når `TESTING=False`)*
 
@@ -168,3 +168,4 @@ Applikationen eksponeres som standard på `http://localhost:8080`.
 - **Metadata ved journalisering** (beskrivelse, dokumentnavn, aktindsigt): fastlagt i `SbsysClient.journalize()` i [src/sbsys_client.py](src/sbsys_client.py).
 - **Journaliserings-endpoint mod SBSYS**: `SbsysClient.journalize()` kalder `api/dokument/journaliser` og tilføjer `/<delforloeb_id>` når der journaliseres på et delforløb (se [src/sbsys_client.py](src/sbsys_client.py)).
 - **Brugerformat**: DQ-nummer udtrækkes ved at splitte på `" - "` i [src/api_endpoints.py](src/api_endpoints.py). Hvis inputformat ændrer sig (X-Flow standard), skal parsing opdateres samme sted.
+- **Request timeout**: `APIClientWithAuthHeaders._make_request()` benytter default timeout sat til `30` sekunder i [src/utils/api_client](src/utils/api_client).

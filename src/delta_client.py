@@ -68,7 +68,7 @@ class DeltaAPIClient(APIClientWithAuthHeaders):
 
             now = time.time()
 
-            response = requests.post(tmp_url, headers=tmp_headers, data=tmp_json_data)
+            response = requests.post(tmp_url, headers=tmp_headers, data=tmp_json_data, timeout=60)
             response.raise_for_status()
             data = response.json()
 
@@ -152,11 +152,10 @@ class DeltaClient:
 
     def get_dq_number_search(self, dq_number: str) -> dict | None:
         """
-        Generate a search dictionary for querying Delta by DQ number. Logs the search action in the database.
+        Generate a search dictionary for querying Delta by DQ number.
 
-        :param dq_number: DQ number to search for
-        :param user: User information dictionary containing 'username' and 'email' keys
-        :return: A search dictionary for querying Delta by DQ number if user is provided, otherwise None.
+        :param dq_number: DQ number to search for.
+        :return: A search dictionary for querying Delta by DQ number.
         """
         return {
             "graphQueries": [

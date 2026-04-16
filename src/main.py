@@ -4,7 +4,7 @@ from prometheus_client import generate_latest
 
 from utils.logging import set_logging_configuration, is_ready_gauge, last_updated_gauge
 from utils.config import DEBUG, PORT, POD_NAME
-from api_endpoints import api_endpoints  # Uncomment to import enpoints
+from api_endpoints import api_endpoints
 
 
 set_logging_configuration()
