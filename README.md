@@ -3,7 +3,9 @@
 
 ## Formål
 
-Applikationen udstiller et lille HTTP endpoint til at journalisere et *Ambulancebrev* (PDF) på personalesager i SBSYS. Den modtager en base64-kodet PDF fra X-Flow, finder medarbejderen ud fra et DQ-nummer via Delta, slår medarbejderens personalesager op i SBSYS og journaliserer dokumentet på alle aktive personalesager.
+Applikationen udstiller et lille HTTP endpoint til at journalisere et *Ambulancebrev* (PDF) i SBSYS. Den modtager en base64-kodet PDF fra X-Flow, finder medarbejderen ud fra et DQ-nummer via Delta, slår medarbejderens personalesager op i SBSYS og journaliserer dokumentet på alle aktive personalesager.
+
+Hvis der findes et delforløb på personalesagen med titlen **"07 Øvrige"**, journaliseres dokumentet på dette delforløb (ellers journaliseres direkte på sagen).
 
 ## Beskrivelse
 
@@ -19,8 +21,12 @@ Den primære forretningsflow ligger i endpointet `POST /api/journaliser` i [src/
    - DQ-nummer udtrækkes fra `user`
    - Delta forespørges (OIDC client credentials) for at finde medarbejderens CPR
 4. SBSYS forespørges på personalesager for CPR-nummeret.
-5. Kun aktive sager journaliseres (status-id `6`).
-6. Dokumentet uploades/journaliseres på hver aktiv personalesag med fast metadata (beskrivelse + dokumentnavn).
+5. Kun aktive sager journaliseres (status-id `6`). Hvis der **ingen** aktive sager findes, returnerer API `404`.
+6. For hver aktiv sag:
+   - SBSYS forespørges på delforløb for sagen
+   - Hvis der findes et delforløb med titlen **"07 Øvrige"**, journaliseres dokumentet på dette delforløb
+   - Ellers journaliseres dokumentet direkte på sagen
+7. Dokumentet uploades/journaliseres med fast metadata (beskrivelse + dokumentnavn).
 
 
 ## Afhængigheder
@@ -158,5 +164,7 @@ Applikationen eksponeres som standard på `http://localhost:8080`.
 ### Hard-coded værdier (og hvor de ændres)
 
 - **Aktiv sagsstatus**: `SBSYS_SAG_STATUS_ACTIVE = 6` i [src/api_endpoints.py](src/api_endpoints.py).
+- **Delforløb der journaliseres på**: `DELFORLOEB_TARGET_TITLE = "07 Øvrige"` i [src/api_endpoints.py](src/api_endpoints.py).
 - **Metadata ved journalisering** (beskrivelse, dokumentnavn, aktindsigt): fastlagt i `SbsysClient.journalize()` i [src/sbsys_client.py](src/sbsys_client.py).
+- **Journaliserings-endpoint mod SBSYS**: `SbsysClient.journalize()` kalder `api/dokument/journaliser` og tilføjer `/<delforloeb_id>` når der journaliseres på et delforløb (se [src/sbsys_client.py](src/sbsys_client.py)).
 - **Brugerformat**: DQ-nummer udtrækkes ved at splitte på `" - "` i [src/api_endpoints.py](src/api_endpoints.py). Hvis inputformat ændrer sig (X-Flow standard), skal parsing opdateres samme sted.

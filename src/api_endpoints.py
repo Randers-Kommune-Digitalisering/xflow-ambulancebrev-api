@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
 sbsys_client = SbsysClient(SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_USERNAME, SBSYS_PASSWORD, SBSYS_URL)
 delta_client = DeltaClient(DELTA_URL, DELTA_AUTH_URL, DELTA_REALM, DELTA_CLIENT_ID, DELTA_CLIENT_SECRET)
+
 SBSYS_SAG_STATUS_ACTIVE = 6  # '6' represents the active status in SBSYS
+DELFORLOEB_TARGET_TITLE = "07 Øvrige"  # The title to match for delforloeb
 
 
 @api_endpoints.route('/journaliser', methods=['POST'])
@@ -64,14 +66,27 @@ def journaliser():
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
         active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == SBSYS_SAG_STATUS_ACTIVE]
+        if len(active_sag_result) == 0:
+            logger.warning(f"No active sag found for user {user}")
+            return Response(f"No active sag found for user {user}", status=404)
 
-        # Journalize the document for each sag_id
-        for sag_id in active_sag_result:
-            journalize_result = sbsys_client.journalize(file=pdf_bytes, sag_id=sag_id['Id'])
+        # Journalize the document for each sag
+        for sag in active_sag_result:
+            # Fetch delforloeb for each sag
+            delforloeb_result = sbsys_client.get_delforloeb(sag_id=sag['Id']) if sag else None
+            delforloeb_to_use = None
+            if delforloeb_result and isinstance(delforloeb_result, list):
+                delforloeb_to_use = next(
+                    (item for item in (delforloeb_result or []) if item.get("Titel") == DELFORLOEB_TARGET_TITLE),
+                    None,
+                )
+
+            # Upload the document to sag
+            journalize_result = sbsys_client.journalize(file=pdf_bytes, sag_id=sag['Id'], delforloeb_id=delforloeb_to_use['ID'] if delforloeb_to_use else None)
             if journalize_result:
-                logger.info(f"Journalization successful for sag: {sag_id['Nummer']}")
+                logger.info(f"Journalization successful for sag: {sag['Nummer']}")
             else:
-                logger.error(f"Journalization failed for sag: {sag_id['Nummer']}")
+                logger.error(f"Journalization failed for sag: {sag['Nummer']}")
 
         return Response(f"Document journalized successfully for user: {user}", status=200)
 

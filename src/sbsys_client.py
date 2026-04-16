@@ -124,7 +124,20 @@ class SbsysClient:
             logger.error(f"An error occurred while performing sag_get: {e}")
             return False
 
-    def journalize(self, file, sag_id):
+    def get_delforloeb(self, sag_id):
+        path = f"api/delforloeb/sag/{sag_id}"
+        try:
+            response = self.api_client._make_request("GET", path=path)
+            if not response:
+                logger.warning("No response from SBSYS client")
+                return False
+            return response
+
+        except Exception as e:
+            logger.error(f"An error occurred while performing get_delforloeb: {e}")
+            return False
+
+    def journalize(self, file, sag_id, delforloeb_id=None):
         """
         Journalize a document by uploading a file and metadata.
 
@@ -153,7 +166,7 @@ class SbsysClient:
         try:
             response = self.api_client._make_request(
                 "POST",
-                path="api/dokument/journaliser",
+                path="api/dokument/journaliser" + (f"/{delforloeb_id}" if delforloeb_id else ""),
                 files=multipart,
             )
             if not response:
