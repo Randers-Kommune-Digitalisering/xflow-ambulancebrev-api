@@ -150,7 +150,7 @@ class DeltaClient:
 
                     return people
 
-    def get_dq_number_search(self, dq_number: str) -> dict | None:
+    def get_dq_number_search(self, dq_number: str) -> dict:
         """
         Generate a search dictionary for querying Delta by DQ number.
 

@@ -47,7 +47,7 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
 
         try:
             if not token_url.startswith("https://"):
-                token_url = "https://" + token_url.lstrip("http://")
+                token_url = "https://" + token_url.removeprefix("http://")
             response = requests.post(token_url, headers=headers, data=payload, timeout=20)
             response.raise_for_status()
             data = response.json()
