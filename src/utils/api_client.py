@@ -1,7 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any
 import requests
 
 logger = logging.getLogger(__name__)

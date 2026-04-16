@@ -72,8 +72,6 @@ class DeltaAPIClient(APIClientWithAuthHeaders):
 
             now = time.time()
 
-            import requests
-
             response = requests.post(tmp_url, headers=tmp_headers, data=tmp_json_data)
             response.raise_for_status()
             data = response.json()
@@ -91,7 +89,8 @@ class DeltaAPIClient(APIClientWithAuthHeaders):
 
     def _make_request(self, method, path, **kwargs):
         return super()._make_request(method, path, **kwargs)
-        
+
+
 class DeltaClient:
     def __init__(self, url, auth_url, realm, client_id, client_secret):
         self.api_client = DeltaAPIClient.get_client(client_id, client_secret, url, auth_url, realm)

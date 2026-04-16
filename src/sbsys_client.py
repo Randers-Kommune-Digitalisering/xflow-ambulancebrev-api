@@ -89,6 +89,7 @@ class SbsysAPIClient(APIClientWithAuthHeaders):
                 logger.error("Failed to obtain access token")
                 return {}
 
+
 class SbsysClient:
     def __init__(self, client_id, client_secret, username, password, url):
         self.api_client = SbsysAPIClient.get_client(client_id, client_secret, username, password, url)
@@ -131,12 +132,11 @@ class SbsysClient:
         :param json: Metadata describing the document (JournaliserDokumentInputDtoV10).
         :return: API response.
         """
-        # url = f"{self.api_client.base_url}/dokument/journaliser"
-        # headers = self.api_client.get_auth_headers()
         metadata = {
             "SagID": sag_id,
             "Beskrivelse": "Ambulancebrev automatisk journaliseret fra X-Flow blanket udfyldt af medarbejderen.",
             "OmfattetAfAktindsigt": True,
+            "DokumentNavn": "Ambulancebrev",
         }
 
         if isinstance(file, (bytes, bytearray)):
@@ -156,7 +156,6 @@ class SbsysClient:
                 path="api/dokument/journaliser",
                 files=multipart,
             )
-            logger.debug("SBSYS journalize response: %r", response)
             if not response:
                 logger.warning("No response from SBSYS client")
                 return False
