@@ -62,7 +62,7 @@ class APIClientWithAuthHeaders(ABC):
 
                 except requests.exceptions.JSONDecodeError:
                     if not response.content:
-                        return ' '
+                        return b''
                     return response.content
 
             except requests.exceptions.RequestException as e:

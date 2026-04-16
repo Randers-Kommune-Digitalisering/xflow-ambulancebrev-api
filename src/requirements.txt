@@ -1,7 +1,5 @@
 Flask==3.0.3
 py-healthcheck
-pysftp
 prometheus-client
 python-dotenv
 requests==2.31.0
-requests-pkcs12==1.24

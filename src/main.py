@@ -16,7 +16,7 @@ def create_app():
     app.add_url_rule('/healthz', 'healthcheck', view_func=lambda: health.run())
     app.add_url_rule('/metrics', 'metrics', view_func=generate_latest)
 
-    app.register_blueprint(api_endpoints)  # Uncomment to add enpoints from api_endpoints.py
+    app.register_blueprint(api_endpoints)
 
     @app.before_request
     def set_ready():

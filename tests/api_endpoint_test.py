@@ -24,7 +24,8 @@ def client(app):
 
 @patch('api_endpoints.sbsys_client.journalize')
 @patch('api_endpoints.sbsys_client.get_personalesag')
-def test_journaliser_success(mock_get_personalesag, mock_journalize, client, monkeypatch):
+@patch('api_endpoints.sbsys_client.get_delforloeb')
+def test_journaliser_success(mock_get_delforloeb, mock_get_personalesag, mock_journalize, client, monkeypatch):
     monkeypatch.setattr(api_endpoints_module, 'TESTING', True)
     monkeypatch.setattr(api_endpoints_module, 'TEST_CPR_NUMBER', '0102030405')
 
@@ -35,6 +36,7 @@ def test_journaliser_success(mock_get_personalesag, mock_journalize, client, mon
             'SagsStatus': {'Id': api_endpoints_module.SBSYS_SAG_STATUS_ACTIVE},
         }
     ]
+    mock_get_delforloeb.return_value = []
     mock_journalize.return_value = {'Filer': [{'ShortId': 7050}]}
 
     pdf_bytes = b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n%%EOF\n'

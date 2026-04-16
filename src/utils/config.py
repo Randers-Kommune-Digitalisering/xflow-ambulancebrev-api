@@ -10,7 +10,8 @@ DEBUG = os.getenv('DEBUG', 'False') in ['True', 'true']
 PORT = os.getenv('PORT', '8080')
 POD_NAME = os.getenv('POD_NAME', 'pod_name_not_set')
 
-TESTING = os.getenv('TESTING', 'True') in ['True', 'true']
+TESTING = os.getenv('TESTING', 'False') in ['True', 'true']
+TEST_CPR_NUMBER = os.getenv('TEST_CPR_NUMBER', '').strip()
 
 if TESTING:
     SBSYS_URL = os.getenv('SBSYS_URL_TEST', '').strip()
@@ -37,5 +38,3 @@ DELTA_AUTH_URL = os.getenv('DELTA_AUTH_URL', '').strip()
 DELTA_REALM = os.getenv('DELTA_REALM', '').strip()
 DELTA_CLIENT_ID = os.getenv('DELTA_CLIENT_ID', '').strip()
 DELTA_CLIENT_SECRET = os.getenv('DELTA_CLIENT_SECRET', '').strip()
-
-TEST_CPR_NUMBER = os.getenv('TEST_CPR_NUMBER', '').strip()

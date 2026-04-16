@@ -63,10 +63,6 @@ class DeltaAPIClient(APIClientWithAuthHeaders):
             if refresh_token:
                 tmp_json_data['grant_type'] = 'refresh_token'
                 tmp_json_data['refresh_token'] = self.refresh_token
-            # elif self.username and self.password:
-            #     tmp_json_data['grant_type'] = 'password'
-            #     tmp_json_data['username'] = self.username
-            #     tmp_json_data['password'] = self.password
             else:
                 tmp_json_data['grant_type'] = 'client_credentials'
 

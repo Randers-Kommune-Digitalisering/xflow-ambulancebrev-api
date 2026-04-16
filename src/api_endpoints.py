@@ -62,9 +62,16 @@ def journaliser():
             search_dict = delta_client.get_dq_number_search(user_dq)
             search_result = delta_client.search(search_dict)
             user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
+        if not user_cpr:
+            logger.warning(f"Could not determine CPR for user {user}")
+            return Response(f"Could not determine CPR for user {user}", status=404)
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
+        if not isinstance(sag_result, list):
+            logger.warning(f"No personalesager found for user {user}")
+            return Response(f"No sag found for user {user}", status=404)
+
         active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == SBSYS_SAG_STATUS_ACTIVE]
         if len(active_sag_result) == 0:
             logger.warning(f"No active sag found for user {user}")

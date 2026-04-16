@@ -21,3 +21,8 @@ def test_healthz(client):
     response = client.get('/healthz')
     assert response.status_code == 200
     assert response.get_json()['status'] == 'success'
+
+def test_metrics(client):
+    response = client.get('/metrics')
+    assert response.status_code == 200
+    assert response.data
