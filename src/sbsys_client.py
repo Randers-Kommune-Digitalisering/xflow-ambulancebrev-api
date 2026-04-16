@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 import requests
@@ -109,7 +110,7 @@ class SbsysClient:
         }
 
         try:
-            response = self.api_client.post(path=path, json=payload)
+            response = self.api_client._make_request("POST", path=path, json=payload)
             if not response:
                 logger.warning("No response from SBSYS client")
                 return False
@@ -130,21 +131,36 @@ class SbsysClient:
         :param json: Metadata describing the document (JournaliserDokumentInputDtoV10).
         :return: API response.
         """
-        url = f"{self.api_client.base_url}/dokument/journaliser"
-        headers = self.api_client.get_auth_headers()
-        files = {
-            "file": file
+        # url = f"{self.api_client.base_url}/dokument/journaliser"
+        # headers = self.api_client.get_auth_headers()
+        metadata = {
+            "SagID": sag_id,
+            "Beskrivelse": "Ambulancebrev automatisk journaliseret fra X-Flow blanket udfyldt af medarbejderen.",
+            "OmfattetAfAktindsigt": True,
         }
-        data = {
-            "json": {
-                "SagID": sag_id,
-                "beskrivelse": "Oplysningsbrev automatisk journaliseret fra X-Flow blanket udfyldt af medarbejderen."
-            }
+
+        if isinstance(file, (bytes, bytearray)):
+            file_part = ("Ambulancebrev.pdf", file, "application/pdf")
+        else:
+            filename = getattr(file, "name", None) or "Ambulancebrev.pdf"
+            file_part = (filename, file, "application/pdf")
+
+        multipart = {
+            "file": file_part,
+            "json": (None, json.dumps(metadata, ensure_ascii=False), "application/json"),
         }
+
         try:
-            response = requests.post(url, headers=headers, files=files, data=data, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Journalize failed: {e}")
+            response = self.api_client._make_request(
+                "POST",
+                path="api/dokument/journaliser",
+                files=multipart,
+            )
+            logger.debug("SBSYS journalize response: %r", response)
+            if not response:
+                logger.warning("No response from SBSYS client")
+                return False
+            return response
+        except Exception as e:
+            logger.error(f"An error occurred while journalizing: {e}")
             return False

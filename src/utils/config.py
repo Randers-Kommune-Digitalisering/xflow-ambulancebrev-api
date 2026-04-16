@@ -39,3 +39,4 @@ DELTA_CLIENT_ID = os.getenv('DELTA_CLIENT_ID', '').strip()
 DELTA_CLIENT_SECRET = os.getenv('DELTA_CLIENT_SECRET', '').strip()
 
 TEST_DQ_NUMBER = os.getenv('TEST_DQ_NUMBER', '').strip()
+TEST_CPR_NUMBER = os.getenv('TEST_CPR_NUMBER', '').strip()

@@ -17,8 +17,6 @@ class APIClientWithAuthHeaders(ABC):
         pass  # pragma: no cover
 
     def _make_request(self, method, path, **kwargs):
-        # Backwards/forwards compatible: callers may pass either a requests.* callable
-        # (e.g. requests.post) or an HTTP method string (e.g. "POST").
         if isinstance(method, str):
             method_name = method.strip().lower()
             resolved: Callable[..., requests.Response] | None = getattr(requests, method_name, None)
@@ -41,7 +39,24 @@ class APIClientWithAuthHeaders(ABC):
 
             try:
                 response = method(url, headers=headers, **kwargs)
-                response.raise_for_status()
+
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    resp = getattr(e, "response", None) or response
+                    body = (getattr(resp, "text", "") or "").strip()
+                    if not body:
+                        body = "<empty>"
+                    elif len(body) > 4000:
+                        body = body[:4000] + "...(truncated)"
+
+                    logger.error(
+                        "Request failed (%s) for url: %s response_body=%s",
+                        getattr(resp, "status_code", "unknown"),
+                        getattr(resp, "url", url),
+                        body,
+                    )
+                    return None
 
                 try:
                     return response.json()
