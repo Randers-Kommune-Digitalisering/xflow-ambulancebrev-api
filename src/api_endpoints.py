@@ -11,8 +11,8 @@ from utils.config import SBSYS_URL, SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_
 
 logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
-sbsys_client = SbsysClient(SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_USERNAME, SBSYS_PASSWORD, SBSYS_URL)
-delta_client = DeltaClient(DELTA_URL, DELTA_AUTH_URL, DELTA_REALM, DELTA_CLIENT_ID, DELTA_CLIENT_SECRET)
+sbsys_client = SbsysClient(client_id=SBSIP_CLIENT_ID, client_secret=SBSIP_CLIENT_SECRET, username=SBSYS_USERNAME, password=SBSYS_PASSWORD, url=SBSYS_URL)
+delta_client = DeltaClient(url=DELTA_URL, auth_url=DELTA_AUTH_URL, realm=DELTA_REALM, client_id=DELTA_CLIENT_ID, client_secret=DELTA_CLIENT_SECRET)
 
 SBSYS_SAG_STATUS_ACTIVE = 6  # '6' represents the active status in SBSYS
 DELFORLOEB_TARGET_TITLE = "07 Øvrige"  # The title to match for delforloeb
@@ -59,8 +59,8 @@ def journaliser():
             user_cpr = TEST_CPR_NUMBER
         else:
             user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
-            search_dict = delta_client.get_dq_number_search(user_dq)
-            search_result = delta_client.search(search_dict)
+            search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
+            search_result = delta_client.search_cpr(search_dict=search_dict)
             user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
         if not user_cpr:
             logger.warning(f"Could not determine CPR for user {user}")
@@ -68,7 +68,7 @@ def journaliser():
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
-        if not isinstance(sag_result, list):
+        if not isinstance(sag_result, list) or len(sag_result) == 0:
             logger.warning(f"No personalesager found for user {user}")
             return Response(f"No sag found for user {user}", status=404)
 

@@ -1,7 +1,6 @@
 import logging
 import time
 import requests
-from typing import Dict, Tuple
 
 from utils.api_client import APIClientWithAuthHeaders
 
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class DeltaAPIClient(APIClientWithAuthHeaders):
-    _client_cache: Dict[Tuple[str, str, str, str, str], 'DeltaAPIClient'] = {}
+    _client_cache: dict[tuple[str, str, str, str, str], 'DeltaAPIClient'] = {}
 
     def __init__(self, client_id, client_secret, url, auth_url, realm):
         super().__init__(url)
@@ -91,64 +90,56 @@ class DeltaClient:
     def __init__(self, url, auth_url, realm, client_id, client_secret):
         self.api_client = DeltaAPIClient.get_client(client_id, client_secret, url, auth_url, realm)
 
-    def search(self, search_dict: dict | None = None) -> list[dict] | None:
+    def search_cpr(self, search_dict: dict | None = None) -> list[dict] | None:
         """
-        Search for persons in Delta based on the provided search dictionary.
+        Search for persons CPR in Delta based on the provided search dictionary.
 
         :param search_dict: All search parameters for Delta graph query. Generated via get_dq_number_search
-        :return: A list of dictionaries with person information (name, email, phone, mobile, department, DQ-number) or None if no results found
+        :return: A list of dicts with CPR only (e.g. [{"CPR": "..."}]) or None if no results found
         """
-        if search_dict:
-            res = self.api_client._make_request(method='POST', path='api/object/graph-query', json=search_dict)
+        if not search_dict:
+            return None
 
-            if res:
-                res = res.get('graphQueryResult', [])
-            else:
-                raise ValueError('Intet svar fra Delta')
+        res = self.api_client._make_request(method="POST", path="api/object/graph-query", json=search_dict)
+        if not res:
+            raise ValueError("No response from Delta")
 
-            if len(res) > 0:
-                instances = res[0].get('instances', [])
-                if len(instances) < 1:
-                    return None
-                else:
-                    people = []
-                    for e in instances:
-                        attributes = e.get('attributes', [])
+        graph_results = res.get("graphQueryResult") or []
+        if not graph_results:
+            return None
 
-                        email = next((item.get('value', '-') for item in attributes if item['userKey'] == 'APOS-Types-Engagement-Attribute-Email'), '-')
-                        mobile = next((item.get('value', '-') for item in attributes if item['userKey'] == 'APOS-Types-Engagement-Attribute-Mobile'), '-')
-                        phone = next((item.get('value', '-') for item in attributes if item['userKey'] == 'APOS-Types-Engagement-Attribute-Phone'), '-')
+        instances = graph_results[0].get("instances") or []
+        if not instances:
+            return None
 
-                        relations = e.get('typeRefs', [])
-                        department = next((item.get('targetObject', {}).get('identity', {}).get('name', '-') for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-AdmUnit'), '-')
+        people = []
+        for instance in instances:
+            relations = instance.get("typeRefs") or []
+            person_target = next(
+                (
+                    rel.get("targetObject", {})
+                    for rel in relations
+                    if rel.get("userKey") == "APOS-Types-Engagement-TypeRelation-Person"
+                ),
+                None,
+            )
+            if not person_target:
+                continue
 
-                        person_target = next((item.get('targetObject', {}) for item in relations if item['userKey'] == 'APOS-Types-Engagement-TypeRelation-Person'), {})
-                        name = next((item.get('value', '-') for item in person_target.get('attributes', []) if item.get('userKey') == 'APOS-Types-Person-Attribute-SurnameAndName'), '-')
-                        cpr = next((item.get('value', '-') for item in person_target.get('attributes', []) if item.get('userKey') == 'APOS-Types-Person-Attribute-CPR'), '-')
+            person_attrs = person_target.get("attributes") or []
+            cpr = next(
+                (
+                    item.get("value")
+                    for item in person_attrs
+                    if item.get("userKey") == "APOS-Types-Person-Attribute-CPR"
+                ),
+                None,
+            )
 
-                        incoming_type_relations = person_target.get('inTypeRefs', None)
-                        if incoming_type_relations:
-                            user = incoming_type_relations[0].get('targetObject', {}).get('identity', {}).get('name', '-')
-                        else:
-                            user = '-'
+            if cpr:
+                people.append({"CPR": cpr})
 
-                        person = {
-                            'Navn': name,
-                            'E-mail': email,
-                            'Telefon': phone,
-                            'Mobil': mobile,
-                            'Afdeling': department,
-                            'DQ-nummer': user,
-                            'CPR': cpr,
-                        }
-
-                        for key, value in person.items():
-                            if not value:
-                                person[key] = '-'
-
-                        people.append(person)
-
-                    return people
+        return people
 
     def get_dq_number_search(self, dq_number: str) -> dict:
         """
@@ -165,24 +156,9 @@ class DeltaClient:
                         "structure": {
                             "alias": "employee",
                             "userKey": "APOS-Types-Engagement",
-                            "attributes": [
-                                {
-                                    "alias": "email",
-                                    "userKey": "APOS-Types-Engagement-Attribute-Email"
-                                },
-                                {
-                                    "alias": "phone",
-                                    "userKey": "APOS-Types-Engagement-Attribute-Phone"
-                                },
-                                {
-                                    "alias": "mobile",
-                                    "userKey": "APOS-Types-Engagement-Attribute-Mobile"
-                                }
-                            ],
                             "relations": [
                                 {
                                     "alias": "person",
-                                    "title": "APOS-Types-Engagement-TypeRelation-Person",
                                     "userKey": "APOS-Types-Engagement-TypeRelation-Person",
                                     "typeUserKey": "APOS-Types-Person",
                                     "direction": "OUT",
@@ -194,13 +170,6 @@ class DeltaClient:
                                             "direction": "IN"
                                         }
                                     ]
-                                },
-                                {
-                                    "alias": "unit",
-                                    "title": "APOS-Types-Engagement-TypeRelation-AdmUnit",
-                                    "userKey": "APOS-Types-Engagement-TypeRelation-AdmUnit",
-                                    "typeUserKey": "APOS-Types-AdministrativeUnit",
-                                    "direction": "OUT"
                                 }
                             ]
                         },
@@ -210,61 +179,23 @@ class DeltaClient:
                                 {
                                     "type": "MATCH",
                                     "operator": "EQUAL",
-                                    "left": {
-                                        "source": "DEFINITION",
-                                        "alias": "employee.person.user.$userKey"
-                                    },
-                                    "right": {
-                                        "source": "STATIC",
-                                        "value": dq_number
-                                    }
+                                    "left": {"source": "DEFINITION", "alias": "employee.person.user.$userKey"},
+                                    "right": {"source": "STATIC", "value": dq_number},
                                 },
                                 {
                                     "type": "MATCH",
                                     "operator": "EQUAL",
-                                    "left": {
-                                        "source": "DEFINITION",
-                                        "alias": "employee.$state"
-                                    },
-                                    "right": {
-                                        "source": "STATIC",
-                                        "value": "STATE_ACTIVE"
-                                    }
+                                    "left": {"source": "DEFINITION", "alias": "employee.$state"},
+                                    "right": {"source": "STATIC", "value": "STATE_ACTIVE"},
                                 }
                             ]
                         },
                         "projection": {
-                            "identity": True,
-                            "state": True,
-                            "attributes": [
-                                "APOS-Types-Engagement-Attribute-Mobile",
-                                "APOS-Types-Engagement-Attribute-Phone",
-                                "APOS-Types-Engagement-Attribute-Email"
-                            ],
                             "typeRelations": [
                                 {
                                     "userKey": "APOS-Types-Engagement-TypeRelation-Person",
                                     "projection": {
-                                        "identity": True,
-                                        "state": True,
-                                        "attributes": [
-                                            "APOS-Types-Person-Attribute-SurnameAndName",
-                                            "APOS-Types-Person-Attribute-CPR"
-                                        ],
-                                        "incomingTypeRelations": [
-                                            {
-                                                "userKey": "APOS-Types-User-TypeRelation-Person",
-                                                "projection": {
-                                                    "identity": True
-                                                }
-                                            }
-                                        ]
-                                    }
-                                },
-                                {
-                                    "userKey": "APOS-Types-Engagement-TypeRelation-AdmUnit",
-                                    "projection": {
-                                        "identity": True
+                                        "attributes": ["APOS-Types-Person-Attribute-CPR"],
                                     }
                                 }
                             ]
