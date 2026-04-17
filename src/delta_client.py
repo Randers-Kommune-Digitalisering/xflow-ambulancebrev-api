@@ -90,7 +90,7 @@ class DeltaClient:
     def __init__(self, url, auth_url, realm, client_id, client_secret):
         self.api_client = DeltaAPIClient.get_client(client_id, client_secret, url, auth_url, realm)
 
-    def get_cpr_by_dq_number(self, search_dict: dict | None = None) -> list[dict] | None:
+    def search_cpr(self, search_dict: dict | None = None) -> list[dict] | None:
         """
         Search for persons CPR in Delta based on the provided search dictionary.
 

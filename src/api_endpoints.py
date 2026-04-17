@@ -60,7 +60,7 @@ def journaliser():
         else:
             user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
-            search_result = delta_client.get_cpr_by_dq_number(search_dict=search_dict)
+            search_result = delta_client.search_cpr(search_dict=search_dict)
             user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
         if not user_cpr:
             logger.warning(f"Could not determine CPR for user {user}")
