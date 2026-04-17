@@ -102,7 +102,7 @@ class DeltaClient:
 
         res = self.api_client._make_request(method="POST", path="api/object/graph-query", json=search_dict)
         if not res:
-            raise ValueError("Intet svar fra Delta")
+            raise ValueError("No response from Delta")
 
         graph_results = res.get("graphQueryResult") or []
         if not graph_results:
