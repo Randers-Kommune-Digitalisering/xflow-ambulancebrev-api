@@ -93,6 +93,7 @@ class SbsysClient:
     def __init__(self, client_id, client_secret, username, password, url):
         self.api_client = SbsysAPIClient.get_client(client_id, client_secret, username, password, url)
 
+    # TODO: add docstrings and type hints for get_personalesag
     def get_personalesag(self, cpr):
         path = "api/sag/search"
         if "-" not in cpr:
@@ -123,6 +124,7 @@ class SbsysClient:
             logger.error(f"An error occurred while performing sag_get: {e}")
             return False
 
+    # TODO: add docstrings and type hints for get_delforloeb
     def get_delforloeb(self, sag_id):
         path = f"api/delforloeb/sag/{sag_id}"
         try:
@@ -136,6 +138,7 @@ class SbsysClient:
             logger.error(f"An error occurred while performing get_delforloeb: {e}")
             return False
 
+    # TODO: add type hints for journalize
     def journalize(self, file, sag_id, delforloeb_id=None):
         """
         Journalize a document by uploading a file and metadata.
