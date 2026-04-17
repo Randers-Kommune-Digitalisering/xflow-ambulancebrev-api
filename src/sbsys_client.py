@@ -93,8 +93,13 @@ class SbsysClient:
     def __init__(self, client_id, client_secret, username, password, url):
         self.api_client = SbsysAPIClient.get_client(client_id, client_secret, username, password, url)
 
-    # TODO: add docstrings and type hints for get_personalesag
-    def get_personalesag(self, cpr):
+    def get_personalesag(self, cpr: str) -> list[dict] | None:
+        """
+        Fetch personalesag information for a given CPR number.
+
+        :param cpr: The CPR number to fetch personalesag information for.
+        :return: API response containing personalesag information, None if an error occurs.
+        """
         path = "api/sag/search"
         if "-" not in cpr:
             cpr = cpr[:6] + "-" + cpr[6:]
@@ -114,39 +119,43 @@ class SbsysClient:
             response = self.api_client._make_request("POST", path=path, json=payload)
             if not response:
                 logger.warning("No response from SBSYS client")
-                return False
+                return None
             if not response['Results']:
                 logger.warning("CPR not found in SBSYS")
-                return None
+                return []
             return response['Results']
 
         except Exception as e:
             logger.error(f"An error occurred while performing sag_get: {e}")
-            return False
+            return None
 
-    # TODO: add docstrings and type hints for get_delforloeb
-    def get_delforloeb(self, sag_id):
+    def get_delforloeb(self, sag_id: int) -> list[dict] | None:
+        """
+        Fetch delforloeb information for a given sag ID.
+
+        :param sag_id: The ID of the sag to fetch delforloeb information for.
+        :return: API response containing delforloeb information, or None if an error occurs.
+        """
         path = f"api/delforloeb/sag/{sag_id}"
         try:
             response = self.api_client._make_request("GET", path=path)
             if not response:
                 logger.warning("No response from SBSYS client")
-                return False
+                return None
             return response
 
         except Exception as e:
             logger.error(f"An error occurred while performing get_delforloeb: {e}")
-            return False
+            return None
 
-    # TODO: add type hints for journalize
-    def journalize(self, file, sag_id, delforloeb_id=None):
+    def journalize(self, file: bytes, sag_id: int, delforloeb_id: int = None) -> dict | None:
         """
         Journalize a document by uploading a file and metadata.
 
-        :param file: The file to be journalized.
+        :param file: The file to be journalized (PDF bytes).
         :param sag_id: The ID of the sag to journalize the document under.
         :param delforloeb_id: Optional ID of the delforloeb to associate with the journalized document.
-        :return: API response.
+        :return: API response, or None if an error occurs during the journalization process.
         """
         metadata = {  # JournaliserDokumentInputDtoV10
             "SagID": sag_id,
@@ -174,8 +183,8 @@ class SbsysClient:
             )
             if not response:
                 logger.warning("No response from SBSYS client")
-                return False
+                return None
             return response
         except Exception as e:
             logger.error(f"An error occurred while journalizing: {e}")
-            return False
+            return None

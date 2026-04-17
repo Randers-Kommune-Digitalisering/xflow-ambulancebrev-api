@@ -68,7 +68,7 @@ def journaliser():
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
-        if not isinstance(sag_result, list):
+        if not isinstance(sag_result, list) or len(sag_result) == 0:
             logger.warning(f"No personalesager found for user {user}")
             return Response(f"No sag found for user {user}", status=404)
 
