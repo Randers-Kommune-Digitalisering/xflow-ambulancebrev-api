@@ -2,7 +2,6 @@ import json
 import logging
 import time
 import requests
-from typing import Dict, Tuple
 from utils.api_client import APIClientWithAuthHeaders
 from utils.config import SBSIP_URL
 
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class SbsysAPIClient(APIClientWithAuthHeaders):
-    _client_cache: Dict[Tuple[str, str, str, str, str], 'SbsysAPIClient'] = {}
+    _client_cache: dict[tuple[str, str, str, str, str], 'SbsysAPIClient'] = {}
 
     def __init__(self, client_id, client_secret, username, password, url):
         super().__init__(url)

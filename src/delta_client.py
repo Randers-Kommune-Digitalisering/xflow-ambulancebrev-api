@@ -1,7 +1,6 @@
 import logging
 import time
 import requests
-from typing import Dict, Tuple
 
 from utils.api_client import APIClientWithAuthHeaders
 
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class DeltaAPIClient(APIClientWithAuthHeaders):
-    _client_cache: Dict[Tuple[str, str, str, str, str], 'DeltaAPIClient'] = {}
+    _client_cache: dict[tuple[str, str, str, str, str], 'DeltaAPIClient'] = {}
 
     def __init__(self, client_id, client_secret, url, auth_url, realm):
         super().__init__(url)
