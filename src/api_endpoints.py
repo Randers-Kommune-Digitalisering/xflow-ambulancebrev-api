@@ -1,56 +1,102 @@
 import logging
-import time
+import base64
+import binascii
 
-from datetime import timedelta
 from flask import Blueprint, Response, request
-
-from utils.config import POD_NAME
-from utils.logging import is_ready_gauge, last_updated_gauge, job_start_counter, job_complete_counter, job_duration_summary
+from sbsys_client import SbsysClient
+from delta_client import DeltaClient
+from utils.config import SBSYS_URL, SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_USERNAME, SBSYS_PASSWORD, \
+    DELTA_URL, DELTA_AUTH_URL, DELTA_REALM, DELTA_CLIENT_ID, DELTA_CLIENT_SECRET, \
+    TEST_CPR_NUMBER, TESTING
 
 logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
+sbsys_client = SbsysClient(client_id=SBSIP_CLIENT_ID, client_secret=SBSIP_CLIENT_SECRET, username=SBSYS_USERNAME, password=SBSYS_PASSWORD, url=SBSYS_URL)
+delta_client = DeltaClient(url=DELTA_URL, auth_url=DELTA_AUTH_URL, realm=DELTA_REALM, client_id=DELTA_CLIENT_ID, client_secret=DELTA_CLIENT_SECRET)
 
-# NB: uncomment code in main.py to enable these endpoints
-# Any endpoints added here will be available at /api/<endpoint> - e.g. http://127.0.0.1:8080/api/example
-# Change the the example below to suit your needs + add more as needed
+SBSYS_SAG_STATUS_ACTIVE = 6  # '6' represents the active status in SBSYS
+DELFORLOEB_TARGET_TITLE = "07 Øvrige"  # The title to match for delforloeb
 
 
-@api_endpoints.route('/example', methods=['GET', 'POST'])
-def example():
-    if request.method == 'POST':
-        if request.headers.get('Content-Type') == 'application/json':
-            payload = request.get_json()
+@api_endpoints.route('/journaliser', methods=['POST'])
+def journaliser():
+    """
+    Journalize a PDF document in SBSYS based on the provided JSON payload. The payload should contain the following fields:
+    - user: The user performing the journalization formatted as "<full name> - <dqnumber>"
+    - data: Base64-encoded PDF document to be journalized (string)
+    """
+    try:
+        payload = request.get_json(silent=True) or {}
+        user = payload.get('user')
+        data = payload.get('data')
 
-            # -- Example job with example use of metrics -- #
-            is_ready_gauge.labels(error_type='working', job_name=POD_NAME).set(0)
-            last_updated_gauge.set_to_current_time()
+        # Validate the payload
+        if not user or not data:
+            return Response("Invalid payload: 'user' and 'data' fields are required.", status=400)
+        if not isinstance(data, str):
+            return Response("Invalid payload: 'data' must be a base64-encoded string.", status=400)
 
-            job_start_counter.labels(job_name='example job').inc()
+        try:
+            pdf_bytes = base64.b64decode(data.strip(), validate=True)
+        except (binascii.Error, ValueError):
+            logger.warning(
+                "Invalid base64 PDF data received (len=%s, prefix=%r)",
+                len(data),
+                data[:12],
+            )
+            return Response("Invalid PDF data: expected base64-encoded PDF.", status=400)
 
-            start_time = time.time()
-            logger.info('Doing important job - that somehow prevents the app from being ready')
-            duration = timedelta(seconds=(time.time() - start_time))
+        if not pdf_bytes.startswith(b'%PDF'):
+            logger.warning(
+                "Base64 decoded data is not a PDF (len=%s, prefix=%r)",
+                len(pdf_bytes),
+                pdf_bytes[:8],
+            )
+            return Response("Invalid PDF data.", status=400)
 
-            job_duration_summary.labels(job_name='example job', status='success').observe(duration.total_seconds())
-            job_complete_counter.labels(job_name='example job', status='success').inc()
-
-            is_ready_gauge.labels(error_type=None, job_name=POD_NAME).set(1)
-            last_updated_gauge.set_to_current_time()
-            # --------------------------------------------- #
-
-            return Response(f'You posted: {payload}', status=200)
+        # Prepare for journalization
+        if TESTING:
+            user_cpr = TEST_CPR_NUMBER
         else:
-            return Response('Content-Type must be application/json', status=400)
-    else:
-        # -- Example job with example use of metrics -- #
-        job_start_counter.labels(job_name='another example job').inc()
+            user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
+            search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
+            search_result = delta_client.search_cpr(search_dict=search_dict)
+            user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
+        if not user_cpr:
+            logger.warning(f"Could not determine CPR for user {user}")
+            return Response(f"Could not determine CPR for user {user}", status=404)
 
-        start_time = time.time()
-        logger.info('Doing important job - that does NOT prevent the app from being ready')
-        duration = timedelta(seconds=(time.time() - start_time))
+        # Fetch active personalesager from SBSYS
+        sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
+        if not isinstance(sag_result, list) or len(sag_result) == 0:
+            logger.warning(f"No personalesager found for user {user}")
+            return Response(f"No sag found for user {user}", status=404)
 
-        job_duration_summary.labels(job_name='another example job', status='success').observe(duration.total_seconds())
-        job_complete_counter.labels(job_name='another example job', status='success').inc()
-        # --------------------------------------------- #
+        active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == SBSYS_SAG_STATUS_ACTIVE]
+        if len(active_sag_result) == 0:
+            logger.warning(f"No active sag found for user {user}")
+            return Response(f"No active sag found for user {user}", status=404)
 
-        return Response('Example response', status=200)
+        # Journalize the document for each sag
+        for sag in active_sag_result:
+            # Fetch delforloeb for each sag
+            delforloeb_result = sbsys_client.get_delforloeb(sag_id=sag['Id']) if sag else None
+            delforloeb_to_use = None
+            if delforloeb_result and isinstance(delforloeb_result, list):
+                delforloeb_to_use = next(
+                    (item for item in (delforloeb_result or []) if item.get("Titel") == DELFORLOEB_TARGET_TITLE),
+                    None,
+                )
+
+            # Upload the document to sag
+            journalize_result = sbsys_client.journalize(file=pdf_bytes, sag_id=sag['Id'], delforloeb_id=delforloeb_to_use['ID'] if delforloeb_to_use else None)
+            if journalize_result:
+                logger.info(f"Journalization successful for sag: {sag['Nummer']}")
+            else:
+                logger.error(f"Journalization failed for sag: {sag['Nummer']}")
+
+        return Response(f"Document journalized successfully for user: {user}", status=200)
+
+    except Exception as e:
+        logger.error(f"Error during journalization: {str(e)}")
+        return Response("An error occurred during journalization.", status=500)

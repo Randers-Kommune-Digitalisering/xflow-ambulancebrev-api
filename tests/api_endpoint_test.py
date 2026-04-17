@@ -1,10 +1,11 @@
+import base64
+
 import pytest
 
 from unittest.mock import patch
-from flask import json
 
 from main import create_app
-from api_endpoints import api_endpoints
+import api_endpoints as api_endpoints_module
 
 
 @pytest.fixture()
@@ -13,7 +14,6 @@ def app():
     app.config.update({
         "TESTING": True,
     })
-    app.register_blueprint(api_endpoints)
     yield app
 
 
@@ -22,21 +22,47 @@ def client(app):
     return app.test_client()
 
 
-@patch('api_endpoints.example')
-def test_example_endpoint(mock_example, client):
-    # Test POST with JSON data
-    mock_example.return_value = 'You posted: {"test": "data"}'
-    response = client.post('/api/example', data=json.dumps({"test": "data"}), content_type='application/json')
-    assert response.status_code == 200
-    assert response.data == b"You posted: {'test': 'data'}"
+@patch('api_endpoints.sbsys_client.journalize')
+@patch('api_endpoints.sbsys_client.get_personalesag')
+@patch('api_endpoints.sbsys_client.get_delforloeb')
+def test_journaliser_success(mock_get_delforloeb, mock_get_personalesag, mock_journalize, client, monkeypatch):
+    monkeypatch.setattr(api_endpoints_module, 'TESTING', True)
+    monkeypatch.setattr(api_endpoints_module, 'TEST_CPR_NUMBER', '0102030405')
 
-    # Test POST with non-JSON data
-    mock_example.return_value = 'Content-Type must be application/json'
-    response = client.post('/api/example', data='test data', content_type='text/plain')
+    mock_get_personalesag.return_value = [
+        {
+            'Id': 123,
+            'Nummer': 'SAG-1',
+            'SagsStatus': {'Id': api_endpoints_module.SBSYS_SAG_STATUS_ACTIVE},
+        }
+    ]
+    mock_get_delforloeb.return_value = []
+    mock_journalize.return_value = {'Filer': [{'ShortId': 7050}]}
+
+    pdf_bytes = b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n%%EOF\n'
+    data_b64 = base64.b64encode(pdf_bytes).decode('ascii')
+
+    response = client.post('/api/journaliser', json={'user': 'Test User - dq1', 'data': data_b64})
+
+    assert response.status_code == 200
+    assert b'Document journalized successfully' in response.data
+    mock_journalize.assert_called_once()
+
+
+def test_journaliser_missing_fields(client):
+    response = client.post('/api/journaliser', json={'user': 'Test User - dq1'})
     assert response.status_code == 400
-    assert response.data == b'Content-Type must be application/json'
+    assert b"Invalid payload: 'user' and 'data' fields are required." == response.data
 
-    # Test GET
-    response = client.get('/api/example')
-    assert response.status_code == 200
-    assert response.data == b'Example response'
+
+def test_journaliser_invalid_base64(client):
+    response = client.post('/api/journaliser', json={'user': 'Test User - dq1', 'data': 'not-base64@@@'})
+    assert response.status_code == 400
+    assert response.data == b'Invalid PDF data: expected base64-encoded PDF.'
+
+
+def test_journaliser_invalid_pdf_bytes(client):
+    data_b64 = base64.b64encode(b'hello').decode('ascii')
+    response = client.post('/api/journaliser', json={'user': 'Test User - dq1', 'data': data_b64})
+    assert response.status_code == 400
+    assert response.data == b'Invalid PDF data.'

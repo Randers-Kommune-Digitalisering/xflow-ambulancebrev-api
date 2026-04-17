@@ -4,6 +4,7 @@ import sys
 from unittest.mock import patch, Mock
 from werkzeug import serving
 
+import utils.logging as logging_module
 from utils.logging import disable_endpoint_logs, set_logging_configuration
 
 
@@ -29,8 +30,9 @@ def test_disable_endpoint_logs():
 
 @patch('logging.basicConfig')
 @patch('utils.logging.disable_endpoint_logs')
-def test_set_logging_configuration(mock_disable_endpoint_logs, mock_basicConfig):
+def test_set_logging_configuration(mock_disable_endpoint_logs, mock_basicConfig, monkeypatch):
 
+    monkeypatch.setattr(logging_module, 'DEBUG', False)
     set_logging_configuration()
 
     mock_basicConfig.assert_called_once_with(
