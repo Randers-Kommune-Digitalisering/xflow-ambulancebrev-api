@@ -64,6 +64,7 @@ Applikationen læser miljøvariabler i [src/utils/config.py](src/utils/config.py
 | `DEBUG` | `False` | Flask debug + mere logning |
 | `POD_NAME` | `pod_name_not_set` | Bruges som label i readiness-metrics |
 | `TESTING` | `False` | Slår test-mode til (se nedenfor) |
+| `DRY_RUN` | `False` | Simulerer journalisering uden at foretage ændringer |
 
 #### **SBSYS/SBSIP (production)** *(bruges når `TESTING=False`)*
 
