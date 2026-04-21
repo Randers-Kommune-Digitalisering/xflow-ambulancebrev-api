@@ -26,14 +26,11 @@ def client(app):
 @patch('api_endpoints.sbsys_client.get_personalesag')
 @patch('api_endpoints.sbsys_client.get_delforloeb')
 def test_journaliser_success(mock_get_delforloeb, mock_get_personalesag, mock_journalize, client, monkeypatch):
-    monkeypatch.setattr(api_endpoints_module, 'TESTING', True)
-    monkeypatch.setattr(api_endpoints_module, 'TEST_CPR_NUMBER', '0102030405')
-
     mock_get_personalesag.return_value = [
         {
             'Id': 123,
             'Nummer': 'SAG-1',
-            'SagsStatus': {'Id': api_endpoints_module.SBSYS_SAG_STATUS_ACTIVE},
+            'SagsStatus': {'Id': api_endpoints_module.SBSYS_SAG_STATUS_ACTIVE_TEST},
         }
     ]
     mock_get_delforloeb.return_value = []
