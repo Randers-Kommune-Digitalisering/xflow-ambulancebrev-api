@@ -7,14 +7,15 @@ from sbsys_client import SbsysClient
 from delta_client import DeltaClient
 from utils.config import SBSYS_URL, SBSIP_CLIENT_ID, SBSIP_CLIENT_SECRET, SBSYS_USERNAME, SBSYS_PASSWORD, \
     DELTA_URL, DELTA_AUTH_URL, DELTA_REALM, DELTA_CLIENT_ID, DELTA_CLIENT_SECRET, \
-    TEST_CPR_NUMBER, TESTING
+    TEST_CPR_NUMBER, TESTING, DRY_RUN
 
 logger = logging.getLogger(__name__)
 api_endpoints = Blueprint('api', __name__, url_prefix='/api')
 sbsys_client = SbsysClient(client_id=SBSIP_CLIENT_ID, client_secret=SBSIP_CLIENT_SECRET, username=SBSYS_USERNAME, password=SBSYS_PASSWORD, url=SBSYS_URL)
 delta_client = DeltaClient(url=DELTA_URL, auth_url=DELTA_AUTH_URL, realm=DELTA_REALM, client_id=DELTA_CLIENT_ID, client_secret=DELTA_CLIENT_SECRET)
 
-SBSYS_SAG_STATUS_ACTIVE = 6  # '6' represents the active status in SBSYS
+SBSYS_SAG_STATUS_ACTIVE_TEST = 6  # '6' represents the active status in SBSYS TEST
+SBSYS_SAG_STATUS_ACTIVE_PROD = 9  # '9' represents the active status in SBSYS PROD
 DELFORLOEB_TARGET_TITLE = "07 Øvrige"  # The title to match for delforloeb
 
 
@@ -72,10 +73,14 @@ def journaliser():
             logger.warning(f"No personalesager found for user {user}")
             return Response(f"No sag found for user {user}", status=404)
 
-        active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == SBSYS_SAG_STATUS_ACTIVE]
+        active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == (SBSYS_SAG_STATUS_ACTIVE_TEST if TESTING else SBSYS_SAG_STATUS_ACTIVE_PROD)]
         if len(active_sag_result) == 0:
             logger.warning(f"No active sag found for user {user}")
             return Response(f"No active sag found for user {user}", status=404)
+
+        if DRY_RUN:
+            logger.info(f"DRY_RUN enabled - skipping journalization for user {user}")
+            return Response(f"DRY_RUN: Document would be journalized for user {user}", status=200)
 
         # Journalize the document for each sag
         for sag in active_sag_result:
