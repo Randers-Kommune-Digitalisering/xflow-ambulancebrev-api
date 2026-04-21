@@ -12,6 +12,7 @@ POD_NAME = os.getenv('POD_NAME', 'pod_name_not_set')
 
 TESTING = os.getenv('TESTING', 'False') in ['True', 'true']
 TEST_CPR_NUMBER = os.getenv('TEST_CPR_NUMBER', '').strip()
+DRY_RUN = os.getenv('DRY_RUN', 'False') in ['True', 'true']
 
 if TESTING:
     SBSYS_URL = os.getenv('SBSYS_URL_TEST', '').strip()

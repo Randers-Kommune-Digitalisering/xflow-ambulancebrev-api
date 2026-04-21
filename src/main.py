@@ -3,7 +3,7 @@ from healthcheck import HealthCheck
 from prometheus_client import generate_latest
 
 from utils.logging import set_logging_configuration, is_ready_gauge, last_updated_gauge
-from utils.config import DEBUG, PORT, POD_NAME
+from utils.config import DEBUG, PORT, POD_NAME, DRY_RUN, TESTING
 from api_endpoints import api_endpoints
 
 
@@ -30,4 +30,8 @@ app = create_app()
 
 
 if __name__ == '__main__':  # pragma: no cover
+    if DRY_RUN:
+        print("DRY_RUN enabled - the application will start but journalization will be skipped")
+    if TESTING:
+        print("TESTING enabled - using test CPR number and SBSYS status for testing environment")
     app.run(debug=DEBUG, host='0.0.0.0', port=PORT)
