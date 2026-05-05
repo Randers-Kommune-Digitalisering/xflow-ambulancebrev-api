@@ -29,6 +29,7 @@ def journaliser():
     try:
         payload = request.get_json(silent=True) or {}
         user = payload.get('user')
+        user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
         data = payload.get('data')
 
         # Validate the payload
@@ -59,7 +60,6 @@ def journaliser():
         if TESTING:
             user_cpr = TEST_CPR_NUMBER
         else:
-            user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
             search_result = delta_client.search_cpr(search_dict=search_dict)
             user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
