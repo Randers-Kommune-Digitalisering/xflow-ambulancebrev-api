@@ -68,7 +68,13 @@ def journaliser():
             user_cpr = search_result[0].get('CPR', user_cpr) if search_result and len(search_result) > 0 else user_cpr
 
             if not user_cpr:
-                logger.warning(f"Could not determine CPR for user {user} ({user_dq}); Search result: {search_result}")
+                logger.warning(
+                    "Could not determine CPR for user %s (%s); Delta search returned results=%s, count=%s",
+                    user,
+                    user_dq,
+                    bool(search_result),
+                    len(search_result) if isinstance(search_result, list) else "unknown",
+                )
                 return Response(f"Could not determine CPR for user {user}", status=404)
 
         # Fetch active personalesager from SBSYS
