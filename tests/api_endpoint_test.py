@@ -179,3 +179,19 @@ def test_journaliser_404_when_delta_empty_and_no_client_cpr(
 
     assert response.status_code == 404
     assert b'Could not determine CPR for user' in response.data
+
+
+def test_journaliser_400_when_no_cpr_and_user_not_dq_or_ap(client, monkeypatch):
+    monkeypatch.setattr(api_endpoints_module, 'TESTING', False)
+    monkeypatch.setattr(api_endpoints_module, 'DRY_RUN', False)
+
+    pdf_bytes = b'%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n%%EOF\n'
+    data_b64 = base64.b64encode(pdf_bytes).decode('ascii')
+
+    response = client.post('/api/journaliser', json={'user': 'Test User - xx1', 'data': data_b64})
+
+    assert response.status_code == 400
+    assert (
+        response.data
+        == b"Invalid payload: 'user' must contain a DQ number for Delta search or a CPR number must be provided."
+    )

@@ -71,17 +71,14 @@ def journaliser():
         elif is_user_dq:
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
             search_result = delta_client.search_cpr(search_dict=search_dict)
-            user_cpr = search_result[0].get('CPR', user_cpr) if search_result and len(search_result) > 0 else user_cpr
-
-            if not search_result or len(search_result) == 0:
+            if search_result and len(search_result) > 0:
+                user_cpr = search_result[0].get('CPR', user_cpr)
+            else:
                 logger.warning(
-                    "Could not determine CPR for user %s (%s); Delta search returned results=%s, count=%s. Defaulting to provided CPR.",
+                    "Delta returned no CPR result for user %s (%s); falling back to provided CPR.",
                     user,
                     user_dq,
-                    bool(search_result),
-                    len(search_result) if isinstance(search_result, list) else "unknown",
                 )
-                return Response(f"Could not determine CPR for user {user}", status=404)
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
