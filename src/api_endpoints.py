@@ -73,9 +73,9 @@ def journaliser():
             search_result = delta_client.search_cpr(search_dict=search_dict)
             user_cpr = search_result[0].get('CPR', user_cpr) if search_result and len(search_result) > 0 else user_cpr
 
-            if not user_cpr:
+            if not search_result or len(search_result) == 0:
                 logger.warning(
-                    "Could not determine CPR for user %s (%s); Delta search returned results=%s, count=%s",
+                    "Could not determine CPR for user %s (%s); Delta search returned results=%s, count=%s. Defaulting to provided CPR.",
                     user,
                     user_dq,
                     bool(search_result),
