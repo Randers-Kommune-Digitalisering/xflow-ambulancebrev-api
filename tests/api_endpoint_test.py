@@ -189,7 +189,4 @@ def test_journaliser_400_when_no_cpr_and_user_not_dq_or_ap(client, monkeypatch):
     response = client.post('/api/journaliser', json={'user': 'Test User - xx1', 'data': data_b64})
 
     assert response.status_code == 400
-    assert (
-        response.data
-        == b"Invalid payload: 'user' must contain a DQ number for Delta search or a CPR number must be provided."
-    )
+    assert (response.data == b"Invalid payload: 'user' must contain a DQ number for Delta search or a CPR number must be provided.")
