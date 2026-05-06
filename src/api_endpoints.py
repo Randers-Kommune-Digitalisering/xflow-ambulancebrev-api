@@ -30,6 +30,7 @@ def journaliser():
         payload = request.get_json(silent=True) or {}
         user = payload.get('user')
         user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
+        user_cpr = payload.get('cpr')  # User entered CPR number (will be used if Delta search fails to find CPR)
         data = payload.get('data')
 
         # Validate the payload
@@ -59,13 +60,16 @@ def journaliser():
         # Prepare for journalization
         if TESTING:
             user_cpr = TEST_CPR_NUMBER
+            logger.debug(f"TESTING mode enabled - using test CPR number {TEST_CPR_NUMBER} for user {user} ({user_dq})")
         else:
+            # Fetch CPR number for the user using Delta search
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
             search_result = delta_client.search_cpr(search_dict=search_dict)
-            user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
-        if not user_cpr:
-            logger.warning(f"Could not determine CPR for user {user} ({user_dq}); Search result: {search_result}")
-            return Response(f"Could not determine CPR for user {user}", status=404)
+            user_cpr = search_result[0].get('CPR', user_cpr) if search_result and len(search_result) > 0 else user_cpr
+
+            if not user_cpr:
+                logger.warning(f"Could not determine CPR for user {user} ({user_dq}); Search result: {search_result}")
+                return Response(f"Could not determine CPR for user {user}", status=404)
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
