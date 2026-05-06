@@ -80,6 +80,10 @@ def journaliser():
                     user_dq,
                 )
 
+        if not user_cpr:
+            logger.warning(f"Could not determine CPR for user {user} ({user_dq})")
+            return Response(f"Could not determine CPR for user {user}", status=404)
+
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
         if not isinstance(sag_result, list) or len(sag_result) == 0:
