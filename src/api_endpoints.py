@@ -28,8 +28,7 @@ def journaliser():
     """
     try:
         payload = request.get_json(silent=True) or {}
-        user = payload.get('user')
-        user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
+        user = payload.get('user')  # User performing the journalization (expected format: "<full name> - <dqnumber / initials>")
         user_cpr = payload.get('cpr')  # User entered CPR number (will be used if Delta search fails to find CPR)
         data = payload.get('data')
 
@@ -38,6 +37,13 @@ def journaliser():
             return Response("Invalid payload: 'user' and 'data' fields are required.", status=400)
         if not isinstance(data, str):
             return Response("Invalid payload: 'data' must be a base64-encoded string.", status=400)
+
+        user_dq = user.split(" - ")[-1].strip()  # Extract DQ number from user string
+        is_user_dq = user_dq.lower().startswith("dq") or user_dq.lower().startswith("ap")
+
+        # Validate that either a CPR number is provided or the user string contains a DQ number for Delta search
+        if not user_cpr and not is_user_dq:
+            return Response("Invalid payload: 'user' must contain a DQ number for Delta search or a CPR number must be provided.", status=400)
 
         try:
             pdf_bytes = base64.b64decode(data.strip(), validate=True)
@@ -57,12 +63,12 @@ def journaliser():
             )
             return Response("Invalid PDF data.", status=400)
 
-        # Prepare for journalization
         if TESTING:
             user_cpr = TEST_CPR_NUMBER
             logger.debug(f"TESTING mode enabled - using test CPR number {TEST_CPR_NUMBER} for user {user} ({user_dq})")
-        else:
-            # Fetch CPR number for the user using Delta search
+
+        # Fetch CPR number for the user using Delta search
+        elif is_user_dq:
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
             search_result = delta_client.search_cpr(search_dict=search_dict)
             user_cpr = search_result[0].get('CPR', user_cpr) if search_result and len(search_result) > 0 else user_cpr
