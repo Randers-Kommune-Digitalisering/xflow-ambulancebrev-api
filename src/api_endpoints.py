@@ -39,7 +39,7 @@ def journaliser():
             return Response("Invalid payload: 'data' must be a base64-encoded string.", status=400)
 
         user_dq = user.split(" - ")[-1].strip()  # Extract DQ number from user string
-        is_user_dq = user_dq.lower().startswith("dq") or user_dq.lower().startswith("ap")
+        is_user_dq = user_dq.lower().startswith("dq") or user_dq.lower().startswith("ap") or user_dq.lower().startswith("aa")
 
         # Validate that either a CPR number is provided or the user string contains a DQ number for Delta search
         if not user_cpr and not is_user_dq:
