@@ -28,7 +28,8 @@ def journaliser():
     """
     try:
         payload = request.get_json(silent=True) or {}
-        user = payload.get('user')
+        user = payload.get('user')  # User performing the journalization (expected format: "<full name> - <dqnumber / initials>")
+        user_cpr = payload.get('cpr')  # User entered CPR number (will be used if Delta search fails to find CPR)
         data = payload.get('data')
 
         # Validate the payload
@@ -36,6 +37,13 @@ def journaliser():
             return Response("Invalid payload: 'user' and 'data' fields are required.", status=400)
         if not isinstance(data, str):
             return Response("Invalid payload: 'data' must be a base64-encoded string.", status=400)
+
+        user_dq = user.split(" - ")[-1].strip()  # Extract DQ number from user string
+        is_user_dq = user_dq.lower().startswith("dq") or user_dq.lower().startswith("ap") or user_dq.lower().startswith("aa")
+
+        # Validate that either a CPR number is provided or the user string contains a DQ number for Delta search
+        if not user_cpr and not is_user_dq:
+            return Response("Invalid payload: 'user' must contain a DQ number for Delta search or a CPR number must be provided.", status=400)
 
         try:
             pdf_bytes = base64.b64decode(data.strip(), validate=True)
@@ -55,31 +63,40 @@ def journaliser():
             )
             return Response("Invalid PDF data.", status=400)
 
-        # Prepare for journalization
         if TESTING:
             user_cpr = TEST_CPR_NUMBER
-        else:
-            user_dq = user.split(" - ")[-1]  # Extract DQ number from user string
+            logger.debug(f"TESTING mode enabled - using test CPR number {TEST_CPR_NUMBER} for user {user} ({user_dq})")
+
+        # Fetch CPR number for the user using Delta search
+        elif is_user_dq:
             search_dict = delta_client.get_dq_number_search(dq_number=user_dq)
             search_result = delta_client.search_cpr(search_dict=search_dict)
-            user_cpr = search_result[0].get('CPR', None) if search_result and len(search_result) > 0 else None
+            if search_result and len(search_result) > 0:
+                user_cpr = search_result[0].get('CPR', user_cpr)
+            else:
+                logger.warning(
+                    "Delta returned no CPR result for user %s (%s); falling back to provided CPR.",
+                    user,
+                    user_dq,
+                )
+
         if not user_cpr:
-            logger.warning(f"Could not determine CPR for user {user}")
+            logger.warning(f"Could not determine CPR for user {user} ({user_dq})")
             return Response(f"Could not determine CPR for user {user}", status=404)
 
         # Fetch active personalesager from SBSYS
         sag_result = sbsys_client.get_personalesag(cpr=user_cpr)
         if not isinstance(sag_result, list) or len(sag_result) == 0:
-            logger.warning(f"No personalesager found for user {user}")
+            logger.warning(f"No personalesager found for user {user} ({user_dq})")
             return Response(f"No sag found for user {user}", status=404)
 
         active_sag_result = [sag for sag in sag_result if sag.get('SagsStatus', {}).get('Id') == (SBSYS_SAG_STATUS_ACTIVE_TEST if TESTING else SBSYS_SAG_STATUS_ACTIVE_PROD)]
         if len(active_sag_result) == 0:
-            logger.warning(f"No active sag found for user {user}")
+            logger.warning(f"No active sag found for user {user} ({user_dq})")
             return Response(f"No active sag found for user {user}", status=404)
 
         if DRY_RUN:
-            logger.info(f"DRY_RUN enabled - skipping journalization for user {user}")
+            logger.info(f"DRY_RUN enabled - skipping journalization for user {user} ({user_dq})")
             return Response(f"DRY_RUN: Document would be journalized for user {user}", status=200)
 
         # Journalize the document for each sag
